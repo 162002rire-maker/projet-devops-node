@@ -4,7 +4,7 @@ const port = process.env.PORT || 3000;
 
 // La route principale (Ce que verra le jury)
 app.get('/', (req, res) => {
-    res.status(200).send('Bonjour le Jury ! Version Node.js opérationnelle.');
+    res.status(200).send('Bonjour le Jury ! Tout fonctionne à merveille.');
 });
 
 // Endpoint technique pour vérifier que l'app est en vie
