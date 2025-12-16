@@ -1,0 +1,56 @@
+name: Deploy to Server
+
+# Ce workflow se déclenche après la publication d'une image Docker
+# et déploie l'application sur un serveur distant via SSH.
+on:
+  workflow_run:
+    workflows: ["Publish Docker image"]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      # Étape 1 : Charger la clé privée SSH à partir des secrets
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Étape 2 : Ajouter l'hôte au fichier known_hosts
+      - name: Add known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      # Étape 3 : Déployer l'application via SSH
+      - name: Deploy container on remote host
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/flask-ci-cd-demo
+        run: |
+          ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} <<'EOSSH'
+            # Connexion au registre Docker
+            echo "Connexion au registre Docker"
+            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+            # Récupération de la dernière image
+            docker pull ${IMAGE_NAME}:latest
+            # Arrêt et suppression du conteneur existant si présent
+            docker stop flask-app || true
+            docker rm flask-app || true
+            # Lancement du nouveau conteneur
+            docker run -d --name flask-app -p 5000:5000 ${IMAGE_NAME}:latest
+          EOSSH
+
+      # Étape 4 : (optionnel) notification via Slack ou Discord
+      - name: Notify deployment
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{"text":"Déploiement terminé avec succès 🚀"}' ${SLACK_WEBHOOK_URL}

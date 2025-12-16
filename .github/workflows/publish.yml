@@ -1,40 +1,57 @@
-name: Publish & Deploy
+name: Publish Docker image
 
+# Ce workflow se déclenche lorsqu'une release GitHub est publiée.
+# Il construit et pousse l'image Docker sur Docker Hub ou GitHub Container Registry.
 on:
   release:
     types: [published]
 
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/flask-ci-cd-demo
+
 jobs:
-  docker-build-push:
+  push_to_registry:
+    name: Push Docker image to registry
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       packages: write
-
+      contents: read
     steps:
-      - name: Récupérer le code
+      # Étape 1 : checkout du code
+      - name: Check out the repo
         uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
+      # Étape 2 : Connexion au registre Docker
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
+          registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and Push Docker Image
+      # Étape 3 : Extraction des métadonnées (tags et labels)
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+
+      # Étape 4 : Construction et push de l'image
+      - name: Build and push Docker image
+        id: push
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/node-devops-project:latest, ${{ secrets.DOCKER_USERNAME }}/node-devops-project:${{ github.event.release.tag_name }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-  deploy:
-    needs: docker-build-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Simulation du Déploiement
-        run: |
-          echo "🚚 Récupération de l'image Docker..."
-          echo "🚀 Déploiement sur le serveur de production (Simulation)..."
-          sleep 5
-          echo "✅ Application déployée avec succès !"
+      # Étape 5 : (optionnel) génération d'une attestation pour la chaîne d'approvisionnement
+      - name: Generate provenance attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

@@ -1,0 +1,26 @@
+# Fichiers Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.env
+venv/
+ENV/
+env.bak/
+.venv/
+
+# Outils d'intégration
+dist/
+.mypy_cache/
+.pytest_cache/
+
+# IDEs
+.vscode/
+.idea/
+
+# Systèmes
+.DS_Store
+.coverage
+coverage.xml

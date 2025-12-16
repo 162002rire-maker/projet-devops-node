@@ -1,20 +1,30 @@
-# Image de base légère (Node 18 Alpine)
-FROM node:18-alpine
+# Image de base officielle Python minimaliste
+FROM python:3.11-slim
 
-# Dossier de travail
+# Empêche Python d'écrire des fichiers pyc et force le flush des logs (bonnes pratiques)
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Créer un utilisateur non privilégié pour exécuter l'application (bonne pratique de sécurité)
+RUN adduser --disabled-password --gecos "" --home "/nonexistent" --shell "/sbin/nologin" appuser
+
+# Définir le répertoire de travail
 WORKDIR /app
 
-# Copie des fichiers de dépendances
-COPY package*.json ./
+# Copier seulement les dépendances pour profiter du cache Docker
+COPY requirements.txt requirements.txt
 
-# Installation des dépendances
-RUN npm install
+# Installer les dépendances Python
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copie du reste du code
-COPY . .
+# Copier le code de l'application
+COPY app app
 
-# Exposition du port
-EXPOSE 3000
+# Changer l'utilisateur
+USER appuser
 
-# Commande de démarrage
-CMD ["npm", "start"]
+# Exposer le port sur lequel l'application écoute
+EXPOSE 5000
+
+# Démarrer l'application via Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app.main:app"]
