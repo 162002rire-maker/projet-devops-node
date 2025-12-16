@@ -1,4 +1,4 @@
-name: Publish Docker
+name: Publish & Deploy
 
 on:
   release:
@@ -27,3 +27,14 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/node-devops-project:latest, ${{ secrets.DOCKER_USERNAME }}/node-devops-project:${{ github.event.release.tag_name }}
+
+  deploy:
+    needs: docker-build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Simulation du Déploiement
+        run: |
+          echo "🚚 Récupération de l'image Docker..."
+          echo "🚀 Déploiement sur le serveur de production (Simulation)..."
+          sleep 5
+          echo "✅ Application déployée avec succès !"
